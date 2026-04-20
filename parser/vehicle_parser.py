@@ -50,6 +50,7 @@ def extract_special_fields(data: dict) -> dict:
     siv = data.get("siv") or {}
     ad = data.get("ad") or {}
 
+    data["first_registration_tms_B"] = siv.get("first_registration_tms_B")
     data["body_j2"] = siv.get("body_J2")
     data["price"] = ad.get("price")
     return data

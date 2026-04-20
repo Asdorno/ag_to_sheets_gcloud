@@ -1,5 +1,5 @@
 from typing import List, Optional
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, field_validator
 
 
 class Vehicle(BaseModel):
@@ -8,7 +8,7 @@ class Vehicle(BaseModel):
     created_tms: Optional[int]
     changed_tms: Optional[int]
     year: Optional[int]
-    first_registration_tms: Optional[int]
+    first_registration_tms_B: Optional[int]
     carmaker: Optional[str]
     model: Optional[str]
     energy: Optional[str]
@@ -35,16 +35,48 @@ class Vehicle(BaseModel):
         return None if v == "" else v
 
     # --- STRUCTURE NORMALIZATION ---
-    @field_validator("photos", mode="before")
-    @classmethod
-    def normalize_photos(cls, v):
-        if isinstance(v, dict):
-            return v.get("item", [])
-        return v or []
-
     @field_validator("equipments", mode="before")
     @classmethod
     def normalize_equipments(cls, v):
+        if v is None:
+            return []
+
+        # case 1: already list
+        if isinstance(v, list):
+            return v
+
+        # case 2: dict like {"item": ...}
         if isinstance(v, dict):
-            return v.get("item", [])
-        return v or []
+            items = v.get("item")
+            if isinstance(items, list):
+                return items
+            if isinstance(items, str):
+                return [items]
+            return []
+
+        # case 3: single string
+        if isinstance(v, str):
+            return [v]
+        return []
+
+    @field_validator("photos", mode="before")
+    @classmethod
+    def normalize_photos(cls, v):
+        if v is None:
+            return []
+
+        if isinstance(v, list):
+            return v
+
+        if isinstance(v, dict):
+            items = v.get("item")
+            if isinstance(items, list):
+                return items
+            if isinstance(items, str):
+                return [items]
+            return []
+
+        if isinstance(v, str):
+            return [v]
+
+        return []
