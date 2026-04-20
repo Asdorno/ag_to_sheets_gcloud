@@ -48,7 +48,7 @@ def vehicle_to_feed_dict(vehicle: Vehicle) -> dict:
 
     # dynamic images
     for i, img in enumerate(vehicle.photos[1:], start=1):
-        data[f"additional_image_link_[{i}]"] = img
+        data[f"additional_image_link[{i}]"] = img
 
     # custom labels (still dynamic-safe)
     custom_labels = [
