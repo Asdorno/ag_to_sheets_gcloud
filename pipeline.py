@@ -1,6 +1,6 @@
 from integration.google_sheets import get_sheet, write_to_sheet
 from integration.sheets_transformer import prepare_sheet_data
-from service.vehicle_service import get_vehicle, get_all_vehicles_details
+from service.vehicle_service import get_all_vehicles_details
 
 
 if __name__ == '__main__':

@@ -13,17 +13,6 @@ def write_to_sheet(sheet, header, rows):
     sheet.clear()
     sheet.update(values)
 
-
-# def get_sheet():
-#     creds = Credentials.from_service_account_file(
-#         "service_account.json",
-#         scopes=["https://www.googleapis.com/auth/spreadsheets"]
-#     )
-#     client = gspread.authorize(creds)
-#     spreadsheet = client.open(sheet_name)
-#     sheet = spreadsheet.sheet1
-#     return sheet
-
 def get_sheet():
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]
     creds, _ = default(scopes=scopes)
