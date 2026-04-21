@@ -2,7 +2,7 @@ from model.vehicle import Vehicle
 import xml.etree.ElementTree as ET
 
 
-# Parses the XML response from the AG API to extract a list of vehicle IDs.
+## Parses the XML response from the AG API to extract a list of vehicle IDs.
 def parse_all_ag_vehicles_id(all_ag_vehicles_xml: str):
     try:
         root = ET.fromstring(all_ag_vehicles_xml.strip())
@@ -16,7 +16,7 @@ def parse_all_ag_vehicles_id(all_ag_vehicles_xml: str):
     return vehicle_ids
 
 
-# Parses the XML response from the AG API for a single vehicle's details and converts it into a Vehicle object.
+## Parses the XML response from the AG API for a single vehicle's details and converts it into a Vehicle object.
 def parse_ag_vehicle_details(xml: str) -> Vehicle:
     try:
         root = ET.fromstring(xml.strip())
@@ -28,7 +28,7 @@ def parse_ag_vehicle_details(xml: str) -> Vehicle:
     return Vehicle.model_validate(normalized)
 
 
-# Makes a dict out of XML, handling both text and nested elements, and converting repeated tags into lists.
+## Makes a dict out of XML, handling both text and nested elements, and converting repeated tags into lists.
 def xml_to_dict(element: ET.Element):
     children = list(element)
     if not children:
@@ -44,7 +44,7 @@ def xml_to_dict(element: ET.Element):
             result[child.tag] = value
     return result
 
-
+## Extracts specific fields from the raw dict that are nested under "siv" and "ad" and promotes them to top-level keys for easier access in the Vehicle model.
 def extract_special_fields(data: dict) -> dict:
     # flatten nested values you actually care about
     siv = data.get("siv") or {}
