@@ -16,6 +16,21 @@ def parse_all_ag_vehicles_id(all_ag_vehicles_xml: str):
     return vehicle_ids
 
 
+## Parses the XML response from the AG API to extract a dictionary mapping vehicle IDs to their last-changed timestamps.
+def parse_all_ag_vehicles_id_to_changed_tms(all_ag_vehicles_xml: str):
+    try:
+        root = ET.fromstring(all_ag_vehicles_xml.strip())
+    except ET.ParseError as e:
+        raise ValueError(f"Invalid XML: {e}")
+
+    id_to_changed_tms = {
+        int(item.findtext("vehicle_id")): item.findtext("changed")
+        for item in root.findall("item")
+        if item.findtext("vehicle_id")
+    }
+    return id_to_changed_tms
+
+
 ## Parses the XML response from the AG API for a single vehicle's details and converts it into a Vehicle object.
 def parse_ag_vehicle_details(xml: str) -> Vehicle:
     try:
