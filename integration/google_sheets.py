@@ -1,10 +1,8 @@
 import gspread
-import os
-from dotenv import load_dotenv
 from google.auth import default
+from secret_accessor import get_secret
 
-load_dotenv()
-sheet_id = os.getenv("SHEET_ID")
+sheet_id = get_secret("SHEET_ID")
 
 ## Writes the provided header and rows to the given Google Sheets sheet. The function first combines the header and rows into a single list of values, then clears the existing content of the sheet before updating it with the new values. This ensures that the sheet is refreshed with the latest data each time this function is called.
 def write_to_sheet(sheet, header, rows):

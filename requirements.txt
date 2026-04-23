@@ -14,3 +14,6 @@ urllib3==2.6.3
 xmltodict==1.0.4
 gspread
 protobuf
+google-cloud-secret-manager
+google-auth
+google-api-python-client

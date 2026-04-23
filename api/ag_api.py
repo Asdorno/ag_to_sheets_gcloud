@@ -1,12 +1,10 @@
-import os
 import requests
 from requests_oauthlib import OAuth1
-from dotenv import load_dotenv
+from secret_accessor import get_secret
 
-load_dotenv()
-ag_url = os.getenv('AG_API_URL')
-consumer_key = os.getenv('AG_API_CONSUMER_KEY')
-consumer_secret = os.getenv('AG_API_CONSUMER_SECRET')
+ag_url = get_secret('AG_API_URL')
+consumer_key = get_secret('AG_API_CONSUMER_KEY')
+consumer_secret = get_secret('AG_API_CONSUMER_SECRET')
 
 
 ## Returns the XML response from the AG API containing a list of all vehicle IDs, creation timestamps, last-changed timestamps and titles.
