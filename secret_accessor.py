@@ -1,5 +1,6 @@
 from google.cloud import secretmanager
 
+
 def get_secret(secret_id):
     client = secretmanager.SecretManagerServiceClient()
     name = f"projects/whats-app-project-toni-wihbe/secrets/{secret_id}/versions/latest"

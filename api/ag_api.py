@@ -17,6 +17,7 @@ def get_all_ag_vehicles_xml():
         raise Exception(f"HTTP error: {response.status_code} - {response.text}")
     return response.text
 
+
 ## Returns the XML response from the AG API containing detailed information about a specific vehicle identified by its ID.
 ## Raises an exception if the HTTP request fails.
 def get_ag_vehicle_details(id: int):

@@ -44,6 +44,7 @@ def xml_to_dict(element: ET.Element):
             result[child.tag] = value
     return result
 
+
 ## Extracts specific fields from the raw dict that are nested under "siv" and "ad" and promotes them to top-level keys for easier access in the Vehicle model.
 def extract_special_fields(data: dict) -> dict:
     # flatten nested values you actually care about
