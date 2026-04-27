@@ -1,5 +1,6 @@
 from integration.google_sheets import get_sheet, read_sheet_id_to_changed_tms, batch_update_rows, batch_delete_rows, \
     batch_create_rows, get_sheet_header, compact_sheet
+from integration.sheets_transformer import prepare_sheet_data
 from service.vehicle_service import get_all_vehicles_id_to_changed_tms, compare_id_to_changed_tms, \
     get_vehicles_details_by_ids
 
