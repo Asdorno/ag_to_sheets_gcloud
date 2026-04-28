@@ -131,10 +131,31 @@ def build_header(rows: list[dict]) -> list[str]:
             sorted_header.append(key)
 
     """
-    then: everything else alphabetically
+    Separate remaining fields by category for proper ordering
     """
-    remaining = sorted(header - set(sorted_header))
-    sorted_header.extend(remaining)
+    additional_images = []
+    custom_labels = []
+    custom_numbers = []
+    other_fields = []
+
+    remaining = header - set(sorted_header)
+    for field in remaining:
+        if field.startswith("additional_image_link"):
+            additional_images.append(field)
+        elif field.startswith("custom_label_"):
+            custom_labels.append(field)
+        elif field.startswith("custom_number_"):
+            custom_numbers.append(field)
+        else:
+            other_fields.append(field)
+
+    """
+    Add fields in order: additional images, custom labels, custom numbers, then everything else
+    """
+    sorted_header.extend(sorted(additional_images))
+    sorted_header.extend(sorted(custom_labels))
+    sorted_header.extend(sorted(custom_numbers))
+    sorted_header.extend(sorted(other_fields))
 
     return sorted_header
 
