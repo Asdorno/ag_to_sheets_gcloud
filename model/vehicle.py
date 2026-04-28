@@ -28,24 +28,35 @@ class Vehicle(BaseModel):
     equipments: List[str] = []
     photos: List[str] = []
 
-    # --- PRE VALIDATION (runs before parsing) ---
+    """
+    --- PRE VALIDATION (runs before parsing) ---
+    """
     @field_validator("*", mode="before")
     @classmethod
     def empty_string_to_none(cls, v):
         return None if v == "" else v
 
-    # --- STRUCTURE NORMALIZATION ---
+    """
+    --- STRUCTURE NORMALIZATION ---
+    """
     @field_validator("equipments", mode="before")
     @classmethod
     def normalize_equipments(cls, v):
+        """
+        Normalizes the equipments field from various formats (list, dict, string) to a list.
+        """
         if v is None:
             return []
 
-        # case 1: already list
+        """
+        case 1: already list
+        """
         if isinstance(v, list):
             return v
 
-        # case 2: dict like {"item": ...}
+        """
+        case 2: dict like {"item": ...}
+        """
         if isinstance(v, dict):
             items = v.get("item")
             if isinstance(items, list):
@@ -54,7 +65,9 @@ class Vehicle(BaseModel):
                 return [items]
             return []
 
-        # case 3: single string
+        """
+        case 3: single string
+        """
         if isinstance(v, str):
             return [v]
         return []
@@ -62,6 +75,9 @@ class Vehicle(BaseModel):
     @field_validator("photos", mode="before")
     @classmethod
     def normalize_photos(cls, v):
+        """
+        Normalizes the photos field from various formats (list, dict, string) to a list.
+        """
         if v is None:
             return []
 

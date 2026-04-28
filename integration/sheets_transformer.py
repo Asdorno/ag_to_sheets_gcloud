@@ -4,18 +4,33 @@ from model.vehicle import Vehicle
 
 ## Transforms a list of Vehicle objects into a header and rows format suitable for Google Sheets, by converting each vehicle to a dict, building a comprehensive header, and normalizing the rows to match the header structure.
 def prepare_sheet_data(vehicles: list[Vehicle]):
-    # 1. convert
+    """
+    Transforms a list of Vehicle objects into a header and rows format suitable for Google Sheets.
+
+    Converts each vehicle to a dict, builds a comprehensive header, and normalizes the rows to match the header structure.
+    """
+    """
+    1. convert
+    """
     rows_dict = [vehicle_to_feed_dict(v) for v in vehicles]
-    # 2. build header
+    """
+    2. build header
+    """
     header = build_header(rows_dict)
-    # 3. normalize
+    """
+    3. normalize
+    """
     rows = normalize_rows(rows_dict, header)
-    # 4. final sheet payload
+    """
+    4. final sheet payload
+    """
     return header, rows
 
 
-## Builds the description case for the sheet, which is just a list of equipments.
 def build_description(vehicle: Vehicle):
+    """
+    Builds the description case for the sheet, which is just a list of equipments.
+    """
     description = (f"🚗 Marque: {vehicle.carmaker}\n"
                    f"🚙 Modèle: {vehicle.model}\n"
                    f"✨ Version: {vehicle.finishing}\n"
@@ -37,8 +52,12 @@ def build_description(vehicle: Vehicle):
     return description
 
 
-## Converts a Vehicle object into a dict format that matches the expected fields for the Google Sheets feed, including dynamic handling of additional images and custom labels/numbers based on the vehicle's attributes.
 def vehicle_to_feed_dict(vehicle: Vehicle) -> dict:
+    """
+    Converts a Vehicle object into a dict format that matches the expected fields for the Google Sheets feed.
+
+    Includes dynamic handling of additional images and custom labels/numbers based on the vehicle's attributes.
+    """
     data = {
         "id": vehicle.vehicle_id,
         "changed_tms": vehicle.changed_tms,
@@ -51,11 +70,15 @@ def vehicle_to_feed_dict(vehicle: Vehicle) -> dict:
         "link": f"https://garage-app-2b21b.web.app/react-detail/?id=Auto-Gestion%3A{vehicle.vehicle_id}&back=%2Fclient-v2.html%3Fscroll%3D0%26focus%3DAuto-Gestion%253A{vehicle.vehicle_id}",
     }
 
-    # dynamic images
+    """
+    dynamic images
+    """
     for i, img in enumerate(vehicle.photos[1:], start=1):
         data[f"additional_image_link[{i}]"] = img
 
-    # custom labels (still dynamic-safe)
+    """
+    custom labels (still dynamic-safe)
+    """
     custom_labels = [
         vehicle.carmaker,
         vehicle.model,
@@ -66,7 +89,9 @@ def vehicle_to_feed_dict(vehicle: Vehicle) -> dict:
     for i, val in enumerate(custom_labels):
         data[f"custom_label_{i}"] = val or ""
 
-    # numeric custom fields
+    """
+    numeric custom fields
+    """
     custom_numbers = [
         vehicle.mileage,
         vehicle.power,
@@ -79,33 +104,47 @@ def vehicle_to_feed_dict(vehicle: Vehicle) -> dict:
     return data
 
 
-## Builds a comprehensive header for the Google Sheets feed by collecting all unique keys from the list of row dicts, and optionally ordering important fields first followed by the rest alphabetically to ensure a consistent structure in the sheet.
 def build_header(rows: list[dict]) -> list[str]:
+    """
+    Builds a comprehensive header for the Google Sheets feed by collecting all unique keys from the list of row dicts.
+
+    Optionally orders important fields first followed by the rest alphabetically to ensure a consistent structure in the sheet.
+    """
     header = set()
     for row in rows:
         header.update(row.keys())
 
-    # optional: stable ordering (important for Sheets)
+    """
+    optional: stable ordering (important for Sheets)
+    """
     preferred_order = [
         "id", "changed_tms", "image_link", "description", "availability", "title",
         "price", "link", "condition"
     ]
     sorted_header = []
 
-    # first: important fields
+    """
+    first: important fields
+    """
     for key in preferred_order:
         if key in header:
             sorted_header.append(key)
 
-    # then: everything else alphabetically
+    """
+    then: everything else alphabetically
+    """
     remaining = sorted(header - set(sorted_header))
     sorted_header.extend(remaining)
 
     return sorted_header
 
 
-## Normalizes the rows of data to match the header structure by ensuring that each row dict has values for all header columns, filling in missing keys with empty strings. This creates a consistent 2D list format where each sublist corresponds to a row of values in the same order as the header, which is essential for correctly populating the Google Sheets feed.
 def normalize_rows(rows: list[dict], header: list[str]) -> list[list]:
+    """
+    Normalizes the rows of data to match the header structure by ensuring that each row dict has values for all header columns.
+
+    Fills in missing keys with empty strings. This creates a consistent 2D list format where each sublist corresponds to a row of values in the same order as the header, which is essential for correctly populating the Google Sheets feed.
+    """
     normalized = []
     for row in rows:
         normalized.append([row.get(col, "") for col in header])
