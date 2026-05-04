@@ -4,6 +4,8 @@ Python pipeline that synchronizes vehicle inventory data from the Auto-Gestion A
 
 The pipeline reads vehicle IDs and update timestamps from the AG API, compares them with the current Google Sheet contents, then updates changed vehicles, appends new vehicles, and deletes vehicles that no longer exist in the API.
 
+The generated Google Sheet is designed to be used as a Meta catalog feed. The selected fields, such as `id`, `title`, `description`, `availability`, `condition`, `price`, `link`, `image_link`, `additional_image_link[...]`, `custom_label_...`, and `custom_number_...`, are built to describe vehicles in a structure that can be connected to Meta catalog workflows.
+
 ## Features
 
 - Fetches vehicle inventory data from the AG API using OAuth1.
@@ -34,13 +36,15 @@ The pipeline reads vehicle IDs and update timestamps from the AG API, compares t
 ## How It Works
 
 1. `pipeline.py` creates an `APIClient`, `SheetClient`, and `VehicleSyncService`.
-2. `VehicleSyncService` loads vehicle ID-to-timestamp mappings from the AG API and from Google Sheets.
-3. `compare_vehicles` classifies vehicles into:
+2. `APIClient` wraps access to the AG API and exposes methods for reading vehicle IDs, timestamps, and full vehicle details.
+3. `SheetClient` wraps Google Sheets access and exposes methods for reading existing rows, creating rows, updating rows, deleting rows, and compacting the sheet.
+4. `VehicleSyncService` loads vehicle ID-to-timestamp mappings from the AG API and from Google Sheets.
+5. `compare_vehicles` classifies vehicles into:
    - `to_update`: vehicles present in both systems with different `changed_tms` values
    - `to_create`: vehicles present in the API but missing from the sheet
    - `to_delete`: vehicles present in the sheet but missing from the API
-4. Full details are fetched only for vehicles that need to be created or updated.
-5. Google Sheets rows are updated, deleted, compacted, or appended as needed.
+6. Full details are fetched only for vehicles that need to be created or updated.
+7. Google Sheets rows are updated, deleted, compacted, or appended as needed.
 
 ## Requirements
 
@@ -51,6 +55,21 @@ The pipeline reads vehicle IDs and update timestamps from the AG API, compares t
   - Secret Manager secrets used by this project
   - The target Google Sheet
   - Google Sheets API
+
+## Cost Expectations
+
+For low-volume usage, this project is expected to stay well below common Google Cloud free-tier and API quota limits. A real usage example with about 20 vehicles produced a Google Sheets file of roughly 25-50 KB, which is far from the scale where storage, API quota, or data transfer limits normally become relevant.
+
+Current limits to keep in mind:
+
+- Cloud Run Jobs: Google lists a monthly free tier of 240,000 vCPU-seconds and 450,000 GiB-seconds, aggregated by billing account.
+- Cloud Scheduler: 3 scheduler jobs per month are free per billing account; executions themselves are not billed separately.
+- Secret Manager: 6 active secret versions and 10,000 access operations per month are included in the free tier.
+- Google Sheets API: standard use is available at no additional cost, with per-minute quotas such as 300 read and 300 write requests per minute per project.
+- Cloud Build: Google lists 2,500 free build-minutes per month for the default `e2-standard-2` pool, subject to change.
+- Artifact Registry: the first 0.5 GB of stored artifacts is free; data transfer within the same location or into Google Cloud is generally free.
+
+Billing still needs to be enabled for deployment, and Google Cloud pricing can change. Check the official pricing pages before production handover.
 
 ## Configuration
 
@@ -150,9 +169,15 @@ docker run --rm ag-to-sheets-sync
 
 When running in a container, the runtime environment must provide Google credentials that can access Secret Manager and Google Sheets. On Google Cloud, this is typically handled through the service account attached to the runtime.
 
+For full deployment and scheduling instructions, see [RUNBOOK.md](RUNBOOK.md).
+
 ## Google Sheet Expectations
 
-The target sheet should contain a header row. At minimum, the sync logic expects these columns to exist:
+The target spreadsheet can start as a completely empty Google Sheet. The application uses the first worksheet and creates the header row automatically on the first successful run.
+
+If the first worksheet is not empty, it must already contain the required pipeline header columns. Otherwise, the job fails with a clear error instead of clearing or overwriting the sheet.
+
+The generated header includes at least:
 
 | Column | Purpose |
 | --- | --- |

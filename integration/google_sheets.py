@@ -2,7 +2,11 @@ import gspread
 from google.auth import default
 from secret_accessor import get_secret
 
-sheet_id = get_secret("SHEET_ID")
+REQUIRED_HEADER_COLUMNS = ("id", "changed_tms")
+
+
+class InvalidSheetHeaderError(ValueError):
+    """Raised when the target sheet is not empty and does not match the expected format."""
 
 
 def get_sheet():
@@ -15,6 +19,7 @@ def get_sheet():
     If running locally, ensure that the environment variables and credentials are correctly configured for authentication to succeed.
     """
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+    sheet_id = get_secret("SHEET_ID")
     creds, _ = default(scopes=scopes)
     client = gspread.authorize(creds)
     return client.open_by_key(sheet_id).sheet1
@@ -24,8 +29,14 @@ def read_sheet_id_to_changed_tms(sheet):
     """
     Reads all data from the given sheet and returns a dictionary mapping vehicle IDs to their changed_tms values.
 
-    The function assumes the sheet has "id" and "changed_tms" columns.
+    Empty sheets are treated as having no existing vehicles. Non-empty sheets
+    must contain the required managed header columns.
     """
+    header = get_sheet_header(sheet)
+    if not header:
+        return {}
+    validate_sheet_header(header)
+
     all_values = sheet.get_all_records()
     sheet_id_to_changed_tms = {
         int(record.get("id", "")): record.get("changed_tms", "")
@@ -118,13 +129,16 @@ def batch_delete_rows(sheet, delete_ids):
         sheet.delete_rows(row_index)
 
 
-def batch_create_rows(sheet, rows):
+def batch_create_rows(sheet, rows, header=None):
     """
     Appends new rows to the sheet with data for the vehicle IDs in the create_ids list.
     """
-    """
-    Append all new rows at once
-    """
+    current_header = get_sheet_header(sheet)
+    if header and not current_header:
+        sheet.append_rows([header] + rows)
+        return
+
+    validate_sheet_header(current_header)
     sheet.append_rows(rows)
 
 
@@ -133,6 +147,24 @@ def get_sheet_header(sheet):
     Reads the header row directly from the sheet.
     """
     return sheet.row_values(1)
+
+
+def validate_sheet_header(header):
+    """
+    Validates that a non-empty sheet has the minimum columns required by the sync.
+    """
+    normalized_header = {str(column).strip() for column in header if str(column).strip()}
+    missing_columns = [
+        column for column in REQUIRED_HEADER_COLUMNS
+        if column not in normalized_header
+    ]
+
+    if missing_columns:
+        raise InvalidSheetHeaderError(
+            "Target Google Sheet is not empty and is missing required header "
+            f"column(s): {', '.join(missing_columns)}. Use a completely empty "
+            "sheet, or a sheet previously initialized by this pipeline."
+        )
 
 
 def compact_sheet(sheet, header):

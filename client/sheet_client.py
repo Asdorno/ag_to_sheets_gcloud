@@ -1,8 +1,8 @@
 from integration.google_sheets import (
     get_sheet, read_sheet_id_to_changed_tms, batch_update_rows, batch_delete_rows,
-    batch_create_rows, get_sheet_header, compact_sheet
+    batch_create_rows, get_sheet_header, compact_sheet, validate_sheet_header
 )
-from integration.sheets_transformer import prepare_sheet_data
+from integration.sheets_transformer import prepare_sheet_data, normalize_rows, vehicle_to_feed_dict
 
 
 class SheetClient:
@@ -56,8 +56,14 @@ class SheetClient:
         Args:
             vehicles: List of Vehicle objects to create
         """
-        _, rows = prepare_sheet_data(vehicles)
-        batch_create_rows(self.sheet, rows)
+        header = self.get_header()
+        if header:
+            validate_sheet_header(header)
+            rows = normalize_rows([vehicle_to_feed_dict(v) for v in vehicles], header)
+        else:
+            header, rows = prepare_sheet_data(vehicles)
+
+        batch_create_rows(self.sheet, rows, header)
 
     def compact(self):
         """
@@ -65,4 +71,3 @@ class SheetClient:
         """
         header = self.get_header()
         compact_sheet(self.sheet, header)
-
