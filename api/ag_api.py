@@ -2,9 +2,9 @@ import requests
 from requests_oauthlib import OAuth1
 from secret_accessor import get_secret
 
-ag_url = get_secret('AG_API_URL')
-consumer_key = get_secret('AG_API_CONSUMER_KEY')
-consumer_secret = get_secret('AG_API_CONSUMER_SECRET')
+ag_url = get_secret('AG_API_URL').strip()
+consumer_key = get_secret('AG_API_CONSUMER_KEY').strip()
+consumer_secret = get_secret('AG_API_CONSUMER_SECRET').strip()
 
 
 def get_all_ag_vehicles_xml():

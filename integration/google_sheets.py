@@ -18,8 +18,9 @@ def get_sheet():
     When run on Google Cloud and all rights and services are correctly configured, authentification is automatic and the function should work without any additional setup.
     If running locally, ensure that the environment variables and credentials are correctly configured for authentication to succeed.
     """
-    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-    sheet_id = get_secret("SHEET_ID")
+    scopes = ["https://www.googleapis.com/auth/spreadsheets",
+              "https://www.googleapis.com/auth/drive"]
+    sheet_id = get_secret("SHEET_ID").strip()
     creds, _ = default(scopes=scopes)
     client = gspread.authorize(creds)
     return client.open_by_key(sheet_id).sheet1
