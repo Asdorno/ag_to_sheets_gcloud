@@ -563,14 +563,14 @@ Build and push the image using Cloud Build:
 Linux/macOS:
 
 ```bash
-export IMAGE_URI="$REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE_NAME:latest"
+export IMAGE_URI="gcr.io/$PROJECT_ID/$JOB_NAME"
 gcloud builds submit --tag "$IMAGE_URI"
 ```
 
 Windows PowerShell:
 
 ```powershell
-$env:IMAGE_URI = "${env:REGION}-docker.pkg.dev/${env:PROJECT_ID}/${env:REPOSITORY}/${env:IMAGE_NAME}:latest"
+$env:IMAGE_URI = "gcr.io/$env:PROJECT_ID/$env:JOB_NAME"
 gcloud builds submit --tag $env:IMAGE_URI
 ```
 
