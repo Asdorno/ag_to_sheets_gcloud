@@ -6,6 +6,8 @@ This guide explains how to prepare, deploy, and schedule the AG to Google Sheets
 
 The target deployment is a Cloud Run Job that runs `pipeline.py` from a container image. Cloud Scheduler triggers the job repeatedly.
 
+The job also rewrites a vehicle JSON export in Google Cloud Storage whenever the AG inventory changes. That JSON file is intended for a separate Telegram bot job.
+
 ## 1. Before You Start
 
 Before creating the Google Cloud deployment, confirm these decisions and credentials.
@@ -158,6 +160,7 @@ export JOB_NAME="ag-to-sheets-sync"
 export SCHEDULER_JOB_NAME="ag-to-sheets-sync-schedule"
 export RUNTIME_SA_NAME="ag-to-sheets-runner"
 export SCHEDULER_SA_NAME="ag-to-sheets-scheduler"
+export GCS_BUCKET_NAME="your-globally-unique-bucket-name"
 ```
 
 Windows PowerShell:
@@ -172,6 +175,7 @@ $env:JOB_NAME = "ag-to-sheets-sync"
 $env:SCHEDULER_JOB_NAME = "ag-to-sheets-sync-schedule"
 $env:RUNTIME_SA_NAME = "ag-to-sheets-runner"
 $env:SCHEDULER_SA_NAME = "ag-to-sheets-scheduler"
+$env:GCS_BUCKET_NAME = "your-globally-unique-bucket-name"
 ```
 
 Authenticate with Google Cloud:
@@ -295,8 +299,9 @@ Current Google Cloud limits to keep in mind:
 | --- | --- | --- |
 | Cloud Run Jobs | Monthly free tier includes 240,000 vCPU-seconds and 450,000 GiB-seconds, aggregated by billing account. | A scheduled Python sync job should normally run for seconds or minutes, not continuously. |
 | Cloud Scheduler | 3 scheduler jobs are free per billing account; executions themselves are not billed separately. | This deployment needs one scheduler job. |
-| Secret Manager | Free tier includes 6 active secret versions and 10,000 access operations per month. | This project uses 4 secrets and reads them only when the job runs. |
+| Secret Manager | Free tier includes 6 active secret versions and 10,000 access operations per month. | This project uses 5 secrets and reads them only when the job runs. |
 | Google Sheets API | Standard use is available at no additional cost; common quota limits include 300 read and 300 write requests per minute per project. | A small vehicle inventory produces a small number of sheet operations. |
+| Cloud Storage | Small storage and operation volumes are usually inexpensive; check current pricing for production. | The JSON export is a small inventory snapshot rewritten only when the inventory changes. |
 | Cloud Build | Google lists 2,500 free build-minutes per month for the default `e2-standard-2` pool, subject to change. | Builds happen only when deploying a new image, not on every scheduled run. |
 | Artifact Registry | First 0.5 GB of storage is free; data transfer into Google Cloud and within the same location is generally free. | The container image and sheet data are small. |
 
@@ -425,6 +430,7 @@ gcloud services enable \
   cloudbuild.googleapis.com \
   cloudscheduler.googleapis.com \
   secretmanager.googleapis.com \
+  storage.googleapis.com \
   billingbudgets.googleapis.com \
   sheets.googleapis.com \
   iam.googleapis.com \
@@ -440,10 +446,29 @@ gcloud services enable `
   cloudbuild.googleapis.com `
   cloudscheduler.googleapis.com `
   secretmanager.googleapis.com `
+  storage.googleapis.com `
   billingbudgets.googleapis.com `
   sheets.googleapis.com `
   iam.googleapis.com `
   cloudresourcemanager.googleapis.com
+```
+
+Create the Google Cloud Storage bucket used for the JSON export. Bucket names are globally unique, so choose a production-specific name.
+
+Linux/macOS:
+
+```bash
+gcloud storage buckets create "gs://$GCS_BUCKET_NAME" \
+  --location="$REGION" \
+  --uniform-bucket-level-access
+```
+
+Windows PowerShell:
+
+```powershell
+gcloud storage buckets create "gs://$env:GCS_BUCKET_NAME" `
+  --location="$env:REGION" `
+  --uniform-bucket-level-access
 ```
 
 ## 6. Create Service Accounts
@@ -494,6 +519,22 @@ gcloud projects add-iam-policy-binding $env:PROJECT_ID `
   --role="roles/secretmanager.secretAccessor"
 ```
 
+Grant the runtime service account permission to rewrite the JSON object in the bucket:
+
+```bash
+gcloud storage buckets add-iam-policy-binding "gs://$GCS_BUCKET_NAME" \
+  --member="serviceAccount:$RUNTIME_SA_EMAIL" \
+  --role="roles/storage.objectUser"
+```
+
+Windows PowerShell:
+
+```powershell
+gcloud storage buckets add-iam-policy-binding "gs://$env:GCS_BUCKET_NAME" `
+  --member="serviceAccount:$env:RUNTIME_SA_EMAIL" `
+  --role="roles/storage.objectUser"
+```
+
 Share the target Google Sheet with the runtime service account email and give it Editor permission:
 
 ```text
@@ -513,6 +554,7 @@ printf "%s" "https://your-ag-api-base-url" | gcloud secrets create AG_API_URL --
 printf "%s" "your-consumer-key" | gcloud secrets create AG_API_CONSUMER_KEY --data-file=-
 printf "%s" "your-consumer-secret" | gcloud secrets create AG_API_CONSUMER_SECRET --data-file=-
 printf "%s" "your-google-sheet-id" | gcloud secrets create SHEET_ID --data-file=-
+printf "%s" "$GCS_BUCKET_NAME" | gcloud secrets create GCS_BUCKET_NAME --data-file=-
 ```
 
 Windows PowerShell:
@@ -522,6 +564,7 @@ Windows PowerShell:
 "your-consumer-key" | gcloud secrets create AG_API_CONSUMER_KEY --data-file=-
 "your-consumer-secret" | gcloud secrets create AG_API_CONSUMER_SECRET --data-file=-
 "your-google-sheet-id" | gcloud secrets create SHEET_ID --data-file=-
+$env:GCS_BUCKET_NAME | gcloud secrets create GCS_BUCKET_NAME --data-file=-
 ```
 
 To update an existing secret later, add a new version:
@@ -711,13 +754,15 @@ After deployment, verify the full chain:
 3. The Cloud Run Job uses the dedicated runtime service account.
 4. The runtime service account has `roles/secretmanager.secretAccessor`.
 5. The runtime service account has Editor access to the Google Sheet.
-6. Secret Manager contains these secrets:
+6. The runtime service account has `roles/storage.objectUser` on the JSON export bucket.
+7. Secret Manager contains these secrets:
    - `AG_API_URL`
    - `AG_API_CONSUMER_KEY`
    - `AG_API_CONSUMER_SECRET`
    - `SHEET_ID`
-7. The Google Sheet is either completely empty before the first run or already initialized by a previous successful pipeline run.
-8. A manual job execution finishes successfully.
+   - `GCS_BUCKET_NAME`
+8. The Google Sheet is either completely empty before the first run or already initialized by a previous successful pipeline run.
+9. A manual job execution finishes successfully and creates or rewrites `vehicles.json` in the configured bucket.
 
 Useful commands:
 
@@ -725,6 +770,7 @@ Useful commands:
 gcloud scheduler jobs describe "$SCHEDULER_JOB_NAME" --location="$REGION"
 gcloud run jobs describe "$JOB_NAME" --region="$REGION"
 gcloud secrets list
+gcloud storage ls "gs://$GCS_BUCKET_NAME"
 gcloud run jobs executions list --job="$JOB_NAME" --region="$REGION"
 ```
 

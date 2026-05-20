@@ -1,10 +1,12 @@
 # AG to Google Sheets Sync
 
-Python pipeline that synchronizes vehicle inventory data from the Auto-Gestion API into a Google Sheet.
+Python pipeline that synchronizes vehicle inventory data from the Auto-Gestion API into a Google Sheet and rewrites a JSON export in Google Cloud Storage.
 
 The pipeline reads vehicle IDs and update timestamps from the AG API, compares them with the current Google Sheet contents, then updates changed vehicles, appends new vehicles, and deletes vehicles that no longer exist in the API.
 
 The generated Google Sheet is designed to be used as a Meta catalog feed. The selected fields, such as `id`, `title`, `description`, `availability`, `condition`, `price`, `link`, `image_link`, `additional_image_link[...]`, `custom_label_...`, and `custom_number_...`, are built to describe vehicles in a structure that can be connected to Meta catalog workflows.
+
+When any vehicle is created, updated, or deleted, the pipeline also fetches the full current vehicle inventory and rewrites a JSON file in Google Cloud Storage. That JSON file is intended to be consumed by a separate Telegram bot job.
 
 ## Features
 
@@ -12,6 +14,7 @@ The generated Google Sheet is designed to be used as a Meta catalog feed. The se
 - Parses AG XML responses into typed `Vehicle` models.
 - Compares API and sheet state using vehicle IDs and `changed_tms` timestamps.
 - Updates, creates, and deletes Google Sheets rows in sync with the API.
+- Rewrites a full vehicle JSON export in Google Cloud Storage when the inventory changes.
 - Builds feed-ready sheet rows with images, descriptions, prices, labels, and numeric custom fields.
 - Reads sensitive configuration from Google Cloud Secret Manager.
 - Includes unit tests for parsing, transformation, model validation, and comparison logic.
@@ -26,6 +29,7 @@ The generated Google Sheet is designed to be used as a Meta catalog feed. The se
 ├── model/                  # Pydantic data models
 ├── parser/                 # XML parsing and normalization
 ├── service/                # Sync orchestration and comparison logic
+├── storage/                # Google Cloud Storage JSON upload helpers
 ├── tests/                  # Unit tests
 ├── pipeline.py             # Main pipeline entry point
 ├── secret_accessor.py      # Google Cloud Secret Manager helper
@@ -35,7 +39,7 @@ The generated Google Sheet is designed to be used as a Meta catalog feed. The se
 
 ## How It Works
 
-1. `pipeline.py` creates an `APIClient`, `SheetClient`, and `VehicleSyncService`.
+1. `pipeline.py` creates an `APIClient`, `SheetClient`, `StorageClient`, and `VehicleSyncService`.
 2. `APIClient` wraps access to the AG API and exposes methods for reading vehicle IDs, timestamps, and full vehicle details.
 3. `SheetClient` wraps Google Sheets access and exposes methods for reading existing rows, creating rows, updating rows, deleting rows, and compacting the sheet.
 4. `VehicleSyncService` loads vehicle ID-to-timestamp mappings from the AG API and from Google Sheets.
@@ -43,8 +47,9 @@ The generated Google Sheet is designed to be used as a Meta catalog feed. The se
    - `to_update`: vehicles present in both systems with different `changed_tms` values
    - `to_create`: vehicles present in the API but missing from the sheet
    - `to_delete`: vehicles present in the sheet but missing from the API
-6. Full details are fetched only for vehicles that need to be created or updated.
-7. Google Sheets rows are updated, deleted, compacted, or appended as needed.
+6. If any vehicle needs to be updated, created, or deleted, full details for all current API vehicles are fetched and written as a JSON file to Google Cloud Storage.
+7. Full details are fetched for vehicles that need to be created or updated in Google Sheets.
+8. Google Sheets rows are updated, deleted, compacted, or appended as needed.
 
 ## Requirements
 
@@ -55,6 +60,7 @@ The generated Google Sheet is designed to be used as a Meta catalog feed. The se
   - Secret Manager secrets used by this project
   - The target Google Sheet
   - Google Sheets API
+  - The Google Cloud Storage bucket used for the JSON export
 
 ## Cost Expectations
 
@@ -66,6 +72,7 @@ Current limits to keep in mind:
 - Cloud Scheduler: 3 scheduler jobs per month are free per billing account; executions themselves are not billed separately.
 - Secret Manager: 6 active secret versions and 10,000 access operations per month are included in the free tier.
 - Google Sheets API: standard use is available at no additional cost, with per-minute quotas such as 300 read and 300 write requests per minute per project.
+- Cloud Storage: the JSON export is expected to be small; storage and operation costs should normally be negligible for this workload.
 - Cloud Build: Google lists 2,500 free build-minutes per month for the default `e2-standard-2` pool, subject to change.
 - Artifact Registry: the first 0.5 GB of stored artifacts is free; data transfer within the same location or into Google Cloud is generally free.
 
@@ -83,6 +90,13 @@ Required secrets:
 | `AG_API_CONSUMER_KEY` | OAuth1 consumer key for the AG API |
 | `AG_API_CONSUMER_SECRET` | OAuth1 consumer secret for the AG API |
 | `SHEET_ID` | Google Sheet spreadsheet ID |
+| `GCS_BUCKET_NAME` | Google Cloud Storage bucket that receives the rewritten vehicle JSON export |
+
+Optional environment variables:
+
+| Variable | Purpose |
+| --- | --- |
+| `GCS_JSON_OBJECT_NAME` | Object name for the JSON export. Defaults to `vehicles.json` |
 
 The Google Cloud project ID is resolved dynamically by `secret_accessor.py`. It can come from:
 
@@ -167,7 +181,7 @@ Run the container:
 docker run --rm ag-to-sheets-sync
 ```
 
-When running in a container, the runtime environment must provide Google credentials that can access Secret Manager and Google Sheets. On Google Cloud, this is typically handled through the service account attached to the runtime.
+When running in a container, the runtime environment must provide Google credentials that can access Secret Manager, Google Sheets, and the configured Google Cloud Storage bucket. On Google Cloud, this is typically handled through the service account attached to the runtime.
 
 For full deployment and scheduling instructions, see [RUNBOOK.md](RUNBOOK.md).
 
@@ -200,5 +214,6 @@ Additional feed columns are generated from vehicle details, including:
 
 - The pipeline updates only rows whose `changed_tms` value differs between the API and the sheet.
 - Rows deleted from the sheet are followed by a compaction step to remove gaps.
+- When anything changes, the JSON export is fully rewritten from the current API inventory so the Telegram bot job can read a current snapshot.
 - Vehicle descriptions are generated in French and include core vehicle details plus equipment options.
 - The Google Sheet client uses the first worksheet in the spreadsheet: `sheet1`.
