@@ -12,9 +12,9 @@ typing-inspection==0.4.2
 typing_extensions==4.15.0
 urllib3==2.6.3
 xmltodict==1.0.4
-gspread
-protobuf
-google-cloud-secret-manager
-google-auth
-google-api-python-client
-google-cloud-storage
+gspread==6.2.1
+protobuf==6.33.6
+google-cloud-secret-manager==2.27.0
+google-auth==2.49.2
+google-api-python-client==2.194.0
+google-cloud-storage==3.10.1

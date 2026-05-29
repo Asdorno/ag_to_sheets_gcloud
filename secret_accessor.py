@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from google.cloud import secretmanager
 import google.auth
 
+load_dotenv()
 
 def get_project_id() -> str:
     """
@@ -14,7 +15,6 @@ def get_project_id() -> str:
         Raises:
             RuntimeError: If Google Cloud project ID is not accessible through default auth or environment variables.
         """
-    load_dotenv()
     _, project_id = google.auth.default()
 
     if project_id:
